@@ -1,3 +1,5 @@
+.. _multinode_use_cases:
+
 MultiNode Use Cases
 ###################
 
