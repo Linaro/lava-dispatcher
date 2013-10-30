@@ -90,7 +90,7 @@ Changes to submission JSON
 Example JSON::
 
  {
-    "timeout": 18000,
+    "timeout": 900,
     "job_name": "simple multinode job",
     "logging_level": "INFO",
     "device_group": [
