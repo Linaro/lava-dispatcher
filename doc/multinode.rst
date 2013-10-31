@@ -28,7 +28,6 @@ the test definition in the default PATH.
    :maxdepth: 3
 
    multinodeapi.rst
-   multinode-usecases.rst
    debugging.rst
 
 Hardware requirements and virtualisation
