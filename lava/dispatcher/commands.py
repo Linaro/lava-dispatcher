@@ -12,11 +12,11 @@ from lava.dispatcher.node import NodeDispatcher
 import lava_dispatcher.config
 from lava_dispatcher.config import get_config, get_device_config, list_devices
 from lava_dispatcher.job import LavaTestJob, validate_job_data
-from lava_dispatcher.pipeline.action import JobError
-from lava_dispatcher.pipeline.job import ZMQConfig
-from lava_dispatcher.pipeline.log import YAMLLogger
-from lava_dispatcher.pipeline.device import NewDevice
-from lava_dispatcher.pipeline.parser import JobParser
+from lava_dispatcher.action import JobError
+from lava_dispatcher.job import ZMQConfig
+from lava_dispatcher.log import YAMLLogger
+from lava_dispatcher.device import NewDevice
+from lava_dispatcher.parser import JobParser
 
 
 class SetUserConfigDirAction(argparse.Action):

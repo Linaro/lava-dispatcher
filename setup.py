@@ -42,15 +42,9 @@ setup(
     namespace_packages=['lava'],
     package_data={
         'lava_dispatcher': [
-            'default-config/lava-dispatcher/lava-dispatcher.conf',
-            'default-config/lava-dispatcher/lava-dispatcher.conf',
-            'default-config/lava-dispatcher/device-defaults.conf',
-            'default-config/lava-dispatcher/device-types/*.conf',
-            'default-config/lava-dispatcher/devices/*.conf',
-            'pipeline/device_types/*.conf',
-            'pipeline/devices/*.conf',
-            'pipeline/devices/*.yaml',
-            'device/sdmux.sh',
+            'device_types/*.conf',
+            'devices/*.conf',
+            'devices/*.yaml',
             'device/dynamic_vm_keys/lava*',
             'lava_test_shell/lava-background-process-start',
             'lava_test_shell/lava-background-process-stop',
@@ -73,11 +67,11 @@ setup(
             'lava_test_shell/distro/ubuntu/*',
             'lava_test_shell/distro/debian/*',
             'lava_test_shell/distro/oe/*',
-            'pipeline/lava_test_shell/lava-test-case',
-            'pipeline/lava_test_shell/lava-test-runner',
-            'pipeline/lava_test_shell/lava-target-ip',
-            'pipeline/lava_test_shell/lava-target-mac',
-            'pipeline/lava_test_shell/multi_node/*',
+            'lava_test_shell/lava-test-case',
+            'lava_test_shell/lava-test-runner',
+            'lava_test_shell/lava-target-ip',
+            'lava_test_shell/lava-target-mac',
+            'lava_test_shell/multi_node/*',
         ],
         'linaro_dashboard_bundle': [
             'schemas/*',
@@ -99,7 +93,7 @@ setup(
         'configobj',
         'pyudev >= 0.21'
     ],
-    test_suite='lava_dispatcher.tests.test_suite',
+    test_suite='lava_dispatcher.test',
     tests_require=[
         'pep8 >= 1.4.6',
         'testscenarios >= 0.4'

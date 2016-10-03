@@ -12,5 +12,5 @@ echo
 python setup.py test "$@"
 
 # to run python3 unit tests, you can use
-# python3 -m unittest discover -v lava_dispatcher.pipeline
+# python3 -m unittest discover -v lava_dispatcher
 # but the python3 dependencies are not automatically installed.
