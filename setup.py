@@ -29,14 +29,6 @@ setup(
     entry_points="""
     [lava.commands]
     dispatch = lava.dispatcher.commands:dispatch
-    connect = lava.dispatcher.commands:connect
-    devices = lava.dispatcher.commands:devices
-    power-cycle = lava.dispatcher.commands:power_cycle
-
-    [lava.signal_handlers]
-    add-duration = lava_dispatcher.signals.duration:AddDuration
-    arm-probe = lava_dispatcher.signals.armprobe:ArmProbe
-    shell-hooks = lava_dispatcher.signals.shellhooks:ShellHooks
     """,
     packages=find_packages(),
     namespace_packages=['lava'],
@@ -78,7 +70,6 @@ setup(
         ],
     },
     install_requires=[
-        'json-schema-validator >= 2.3',
         'lava-tool >= 0.4',
         'pexpect >= 2.3',
         'PyYAML',
