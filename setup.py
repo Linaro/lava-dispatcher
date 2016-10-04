@@ -43,7 +43,6 @@ setup(
     package_data={
         'lava_dispatcher': [
             'device_types/*.conf',
-            'devices/*.conf',
             'devices/*.yaml',
             'device/dynamic_vm_keys/lava*',
             'lava_test_shell/lava-background-process-start',
@@ -82,9 +81,7 @@ setup(
         'json-schema-validator >= 2.3',
         'lava-tool >= 0.4',
         'pexpect >= 2.3',
-        'configglue',
         'PyYAML',
-        'pyserial >= 2.6',
         '%s' % lzma,
         'requests',
         'netifaces >= 0.10.0',
