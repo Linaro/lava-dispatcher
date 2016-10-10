@@ -70,7 +70,6 @@ setup(
         ],
     },
     install_requires=[
-        'lava-tool >= 0.4',
         'pexpect >= 2.3',
         'PyYAML',
         '%s' % lzma,
@@ -103,7 +102,7 @@ setup(
             ['etc/lava-slave.service'])
     ],
     scripts=[
-        'lava-dispatch',
+        'lava/dispatcher/lava-dispatch',
         'lava/dispatcher/lava-dispatcher-slave',
         'lava/dispatcher/lava-slave'
     ],
