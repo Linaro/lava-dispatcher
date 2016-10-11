@@ -23,13 +23,11 @@ setup(
         'License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
         'Topic :: Software Development :: Embedded Systems',
         'Topic :: Software Development :: Testing',
     ],
-    entry_points="""
-    [lava.commands]
-    dispatch = lava.dispatcher.commands:dispatch
-    """,
     packages=find_packages(),
     namespace_packages=['lava'],
     package_data={
