@@ -51,7 +51,10 @@ from lava_dispatcher.logical import (
     Deployment,
     RetryAction,
 )
-from lava_dispatcher.utils.compression import untar_file
+from lava_dispatcher.utils.compression import (
+    untar_file,
+    decompress_file,
+)
 from lava_dispatcher.utils.filesystem import (
     copy_to_lxc,
     lava_lxc_home,
@@ -65,10 +68,7 @@ from lava_dispatcher.utils.constants import (
 from lava_dispatcher.actions.boot.fastboot import EnterFastbootAction
 from lava_dispatcher.actions.boot.u_boot import UBootEnterFastbootAction
 
-if sys.version_info[0] == 2:
-    import urlparse as lavaurl
-elif sys.version_info[0] == 3:
-    import urllib.parse as lavaurl  # pylint: disable=no-name-in-module,import-error
+import urllib.parse as lavaurl
 
 # pylint: disable=logging-not-lazy
 
@@ -99,9 +99,13 @@ class DownloaderAction(RetryAction):
 
         # Find the right action according to the url
         if 'images' in parameters and self.key in parameters['images']:
-            url = lavaurl.urlparse(parameters['images'][self.key]['url'])
+            url = parameters['images'][self.key].get('url')
         else:
-            url = lavaurl.urlparse(parameters[self.key]['url'])
+            url = parameters[self.key].get('url')
+        if url is None:
+            raise JobError("Invalid deploy action: 'url' is missing for '%s'" % self.key)
+
+        url = lavaurl.urlparse(url)
         if url.scheme == 'scp':
             action = ScpDownloadAction(self.key, self.path, url, self.uniquify)
         elif url.scheme == 'http' or url.scheme == 'https':
@@ -185,8 +189,8 @@ class DownloadHandler(Action):  # pylint: disable=too-many-instance-attributes
                 decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
             elif compression == 'bz2':
                 decompressor = bz2.BZ2Decompressor()
-            elif compression == 'xz':
-                decompressor = lzma.LZMADecompressor()  # pylint: disable=no-member
+            else:
+                fname, _ = self._url_to_fname_suffix(self.path, None)
             self.logger.debug("Using %s decompression" % compression)
         else:
             self.logger.debug("No compression specified.")
@@ -205,7 +209,7 @@ class DownloadHandler(Action):  # pylint: disable=too-many-instance-attributes
                         error_message = str(eof_exc)
                         self.logger.exception(error_message)
                         raise JobError(error_message)
-                except (IOError, lzma.error, zlib.error) as exc:  # pylint: disable=no-member
+                except (IOError, lzma.LZMAError, zlib.error) as exc:  # pylint: disable=no-member
                     error_message = str(exc)
                     self.logger.exception(error_message)
                     raise JobError(error_message)
@@ -218,6 +222,13 @@ class DownloadHandler(Action):  # pylint: disable=too-many-instance-attributes
             msg = "Unable to open %s: %s" % (fname, exc.strerror)
             self.logger.error(msg)
             raise InfrastructureError(msg)
+        if compression and compression == 'xz':
+            start = time.time()
+            self.logger.info("Decompressing filename: %s using %s compression", fname, compression)
+            fname = decompress_file(fname, compression)
+            elapsed = time.time() - start
+            self.logger.info("Decompression required %.2f seconds", elapsed)
+        self.set_namespace_data(action='download-action', label=self.key, key='file', value=fname)
 
     def validate(self):
         super(DownloadHandler, self).validate()
@@ -233,6 +244,8 @@ class DownloadHandler(Action):  # pylint: disable=too-many-instance-attributes
                                     key='file', value=image_name)
             self.set_namespace_data(action='download-action', label=self.key,
                                     key='image_arg', value=image_arg)
+            self.set_namespace_data(action='download-action', label=self.key,
+                                    key='compression', value=compression)
         else:
             self.url = lavaurl.urlparse(self.parameters[self.key]['url'])
             compression = self.parameters[self.key].get('compression', None)
@@ -240,6 +253,7 @@ class DownloadHandler(Action):  # pylint: disable=too-many-instance-attributes
             overlay = self.parameters.get('overlay', False)
             fname, _ = self._url_to_fname_suffix(self.path, compression)
             self.set_namespace_data(action='download-action', label=self.key, key='file', value=fname)
+            self.set_namespace_data(action='download-action', label=self.key, key='compression', value=compression)
 
         if overlay:
             self.set_namespace_data(action='download-action', label=self.key, key='overlay', value=overlay)
@@ -325,7 +339,6 @@ class DownloadHandler(Action):  # pylint: disable=too-many-instance-attributes
                               round(downloaded_size / (1024 * 1024 * (ending - beginning)), 2)))
 
         # set the dynamic data into the context
-        self.set_namespace_data(action='download-action', label=self.key, key='file', value=fname)
         self.set_namespace_data(action='download-action', label=self.key, key='md5', value=md5.hexdigest())
         self.set_namespace_data(action='download-action', label=self.key, key='sha256', value=sha256.hexdigest())
 
@@ -669,7 +682,7 @@ class DownloadAction(DeployAction):  # pylint:disable=too-many-instance-attribut
         if self.job.device.get('fastboot_via_uboot', False):
             self.internal_pipeline.add_action(ConnectDevice())
             self.internal_pipeline.add_action(UBootEnterFastbootAction())
-        elif self.job.device.power_command:
+        elif self.job.device.hard_reset_command:
             self.force_prompt = True
             self.internal_pipeline.add_action(ConnectDevice())
             self.internal_pipeline.add_action(ResetDevice())

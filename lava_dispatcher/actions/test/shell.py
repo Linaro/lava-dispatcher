@@ -43,17 +43,13 @@ from lava_dispatcher.logical import (
     LavaTest,
     RetryAction
 )
-from lava_dispatcher.connection import (
-    BaseSignalHandler,
-    SignalMatch
-)
+from lava_dispatcher.connection import SignalMatch
 from lava_dispatcher.protocols.lxc import LxcProtocol
 from lava_dispatcher.utils.constants import (
     DEFAULT_V1_PATTERN,
     DEFAULT_V1_FIXUP,
 )
-if sys.version > '3':
-    from functools import reduce  # pylint: disable=redefined-builtin
+from functools import reduce
 
 # pylint: disable=too-many-branches,too-many-statements,too-many-instance-attributes,logging-not-lazy
 
@@ -393,6 +389,12 @@ class TestShellAction(TestAction):
 
     @nottest
     def signal_test_case(self, params):
+        # If the STARTRUN signal was not received correctly, we cannot continue
+        # as the test_uuid is missing.
+        # This is only happening when the signal string is split by some kernel messages.
+        if self.signal_director.test_uuid is None:
+            self.logger.error("Unknown test uuid. The STARTRUN signal for this test action was not received correctly.")
+            raise TestError("Invalid TESTCASE signal")
         try:
             data = handle_testcase(params)
             # get the fixup from the pattern_dict
@@ -410,9 +412,7 @@ class TestShellAction(TestAction):
         # prevent losing data in the update
         # FIXME: support parameters and retries
         if res["test_case_id"] in p_res:
-            raise JobError(
-                "Duplicate test_case_id in results: %s",
-                res["test_case_id"])
+            raise JobError("Duplicate test_case_id in results: %s" % res["test_case_id"])
         # turn the result dict inside out to get the unique
         # test_case_id/testset_name as key and result as value
         res_data = {
@@ -425,7 +425,7 @@ class TestShellAction(TestAction):
             try:
                 measurement = decimal.Decimal(res['measurement'])
             except decimal.InvalidOperation:
-                raise TestError("Invalid measurement %s", res['measurement'])
+                raise TestError("Invalid measurement %s" % res['measurement'])
             res_data['measurement'] = measurement
             if 'units' in res:
                 res_data['units'] = res['units']
@@ -516,7 +516,7 @@ class TestShellAction(TestAction):
                 try:
                     measurement = decimal.Decimal(res['measurement'])
                 except decimal.InvalidOperation:
-                    raise TestError("Invalid measurement %s", res['measurement'])
+                    raise TestError("Invalid measurement %s" % res['measurement'])
                 res_data['measurement'] = measurement
                 if 'units' in res:
                     res_data['units'] = res['units']
@@ -596,7 +596,6 @@ class TestShellAction(TestAction):
             SignalDirector is the link between the Action and the Connection. The Action uses
             the SignalDirector to interact with the I/O over the Connection.
             """
-            self._cur_handler = BaseSignalHandler(protocol)
             self.protocol = protocol  # communicate externally over the protocol API
             self.connection = None  # communicate with the device
             self.logger = logging.getLogger("dispatcher")
@@ -610,9 +609,6 @@ class TestShellAction(TestAction):
 
         def signal(self, name, params):
             handler = getattr(self, "_on_" + name.lower(), None)
-            if not handler and self._cur_handler:
-                handler = self._cur_handler.custom_signal
-                params = [name] + list(params)
             if handler:
                 try:
                     # The alternative here is to drop the getattr and have a long if:elif:elif:else.
@@ -628,34 +624,3 @@ class TestShellAction(TestAction):
                     self.logger.error("job error: handling signal %s failed: %s", name, exc)
                     return False
                 return True
-
-        def postprocess_bundle(self, bundle):
-            pass
-
-        def _on_testset_start(self, set_name):
-            pass
-
-        def _on_testset_stop(self):
-            pass
-
-        # noinspection PyUnusedLocal
-        def _on_startrun(self, test_run_id, uuid):  # pylint: disable=unused-argument
-            """
-            runsh.write('echo "<LAVA_SIGNAL_STARTRUN $TESTRUN_ID $UUID>"\n')
-            """
-            self._cur_handler = None
-            if self._cur_handler:
-                self._cur_handler.start()
-
-        # noinspection PyUnusedLocal
-        def _on_endrun(self, test_run_id, uuid):  # pylint: disable=unused-argument
-            if self._cur_handler:
-                self._cur_handler.end()
-
-        def _on_starttc(self, test_case_id):
-            if self._cur_handler:
-                self._cur_handler.starttc(test_case_id)
-
-        def _on_endtc(self, test_case_id):
-            if self._cur_handler:
-                self._cur_handler.endtc(test_case_id)

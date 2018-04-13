@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) 2017 Linaro Limited
@@ -46,7 +46,6 @@ from lava_dispatcher.parser import JobParser
 
 def parser():
     """ Configure the parser """
-    # Configure the parser
     p_obj = argparse.ArgumentParser()
 
     p_obj.add_argument("--job-id", required=True, metavar="ID",
@@ -55,7 +54,8 @@ def parser():
     p_obj.add_argument("--output-dir", required=True, metavar="DIR",
                        help="Directory for temporary ressources")
     p_obj.add_argument("--validate", action="store_true", default=False,
-                       help="validate the job file, do not execute any steps")
+                       help="validate the job file, do not execute any steps. "
+                            "The description is saved into description.yaml")
 
     group = p_obj.add_argument_group("logging")
     group.add_argument("--logging-url", metavar="URL", default=None,
@@ -117,8 +117,7 @@ def parse_job_file(logger, options):
     """
     # Prepare the pipeline from the file using the parser.
     device = None  # secondary connections do not need a device
-    if options.device is not None:
-        device = NewDevice(options.device)
+    device = NewDevice(options.device)
     parser = JobParser()
 
     # Load the configuration files (this should *not* fail)
@@ -134,7 +133,6 @@ def parse_job_file(logger, options):
                         device, options.job_id,
                         logger=logger,
                         dispatcher_config=dispatcher_config,
-                        output_dir=options.output_dir,
                         env_dut=env_dut)
 
 
@@ -144,13 +142,20 @@ def cancelling_handler(*_):
     The exception will go through all the stack frames cleaning and reporting
     the error.
     """
-    signal.signal(signal.SIGHUP, signal.default_int_handler)
-    signal.signal(signal.SIGINT, signal.default_int_handler)
-    signal.signal(signal.SIGQUIT, signal.default_int_handler)
-    signal.signal(signal.SIGTERM, signal.default_int_handler)
-    signal.signal(signal.SIGUSR1, signal.default_int_handler)
-    signal.signal(signal.SIGUSR2, signal.default_int_handler)
+    signal.signal(signal.SIGHUP, terminating_handler)
+    signal.signal(signal.SIGINT, terminating_handler)
+    signal.signal(signal.SIGQUIT, terminating_handler)
+    signal.signal(signal.SIGTERM, terminating_handler)
+    signal.signal(signal.SIGUSR1, terminating_handler)
+    signal.signal(signal.SIGUSR2, terminating_handler)
     raise JobCanceled("The job was canceled")
+
+
+def terminating_handler(*_):
+    """
+    Second signal handler to notify to the user that the job was canceled twice
+    """
+    raise JobCanceled("The job was canceled again (too long to cancel)")
 
 
 def main():
@@ -196,7 +201,7 @@ def main():
         job = parse_job_file(logger, options)
         description = yaml.dump(job.describe())
 
-        job.validate(simulate=options.validate)
+        job.validate()
         if not options.validate:
             job.run()
 

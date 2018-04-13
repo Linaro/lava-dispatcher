@@ -200,6 +200,8 @@ class RepoAction(Action):
             raise LAVABug("RepoAction run called via super without parameters as arguments")
         location = self.get_namespace_data(action='test', label='shared', key='location')
         lava_test_results_dir = self.get_namespace_data(action='test', label='results', key='lava_test_results_dir')
+        if not lava_test_results_dir:
+            raise LAVABug("Unable to identify top level test shell directory")
         self.logger.debug("Using %s at stage %s", lava_test_results_dir, self.stage)
         if not location:
             raise LAVABug("Missing lava overlay location")
@@ -326,7 +328,8 @@ class GitRepoAction(RepoAction):  # pylint: disable=too-many-public-methods
             runner_path,
             shallow=shallow,
             revision=revision,
-            branch=branch)
+            branch=branch,
+            history=self.parameters.get('history', True))
         if commit_id is None:
             raise InfrastructureError("Unable to get test definition from %s (%s)" % (self.vcs.binary, self.parameters))
         self.results = {
@@ -475,9 +478,6 @@ class TarRepoAction(RepoAction):  # pylint: disable=too-many-public-methods
     def __init__(self):
         super(TarRepoAction, self).__init__()
         self.vcs_binary = "/bin/tar"
-
-    def validate(self):
-        super(TarRepoAction, self).validate()
 
     @classmethod
     def accepts(cls, repo_type):

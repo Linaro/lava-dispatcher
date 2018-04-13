@@ -23,8 +23,7 @@ import unittest
 from lava_dispatcher.device import NewDevice
 from lava_dispatcher.parser import JobParser
 from lava_dispatcher.test.test_basic import Factory, StdoutTestCase
-from lava_dispatcher.test.utils import DummyLogger
-from lava_dispatcher.utils.shell import infrastructure_error
+from lava_dispatcher.test.utils import DummyLogger, infrastructure_error
 
 
 class UBootUMSFactory(Factory):  # pylint: disable=too-few-public-methods
@@ -33,13 +32,12 @@ class UBootUMSFactory(Factory):  # pylint: disable=too-few-public-methods
     Factory objects are dispatcher based classes, independent
     of any database objects.
     """
-    def create_warp7_job(self, filename, output_dir='/tmp/'):  # pylint: disable=no-self-use
+    def create_warp7_job(self, filename):  # pylint: disable=no-self-use
         device = NewDevice(os.path.join(os.path.dirname(__file__), '../devices/imx7s-warp-01.yaml'))
         bbb_yaml = os.path.join(os.path.dirname(__file__), filename)
         with open(bbb_yaml) as sample_job_data:
             parser = JobParser()
-            job = parser.parse(sample_job_data, device, 4212, None, "",
-                               output_dir=output_dir)
+            job = parser.parse(sample_job_data, device, 4212, None, "")
             job.logger = DummyLogger()
         return job
 

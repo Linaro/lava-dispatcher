@@ -18,10 +18,11 @@
 # along
 # with this program; if not, see <http://www.gnu.org/licenses>.
 
-from lava_dispatcher.utils.shell import infrastructure_error
+from lava_dispatcher.utils.shell import which
 from lava_dispatcher.action import (
     Action,
     JobError,
+    InfrastructureError
 )
 from lava_dispatcher.shell import (
     ShellCommand,
@@ -42,6 +43,7 @@ class ConnectDevice(Action):
     name = "connect-device"
     description = "use the configured command to connect serial to the device"
     summary = "run connection command"
+    timeout_exception = InfrastructureError
 
     def __init__(self):
         super(ConnectDevice, self).__init__()
@@ -59,7 +61,7 @@ class ConnectDevice(Action):
             exe = self.command.split(' ')[0]
         except AttributeError:
             self.errors = "Unable to parse the connection command %s" % self.command
-        self.errors = infrastructure_error(exe)
+        which(exe)
 
     def validate(self):
         super(ConnectDevice, self).validate()

@@ -19,9 +19,9 @@
 # with this program; if not, see <http://www.gnu.org/licenses>.
 
 
-from lava_dispatcher.action import JobError
+from lava_dispatcher.action import JobError, InfrastructureError
 from lava_dispatcher.utils.filesystem import check_ssh_identity_file
-from lava_dispatcher.utils.shell import infrastructure_error
+from lava_dispatcher.utils.shell import which
 from lava_dispatcher.action import Action
 from lava_dispatcher.shell import ShellCommand, ShellSession
 
@@ -65,6 +65,7 @@ class ConnectSsh(Action):
     name = "ssh-connection"
     description = "login to a known device using ssh"
     summary = "make an ssh connection to a device"
+    timeout_exception = InfrastructureError
 
     def __init__(self):
         super(ConnectSsh, self).__init__()
@@ -111,7 +112,7 @@ class ConnectSsh(Action):
     def validate(self):
         super(ConnectSsh, self).validate()
         params = self._check_params()
-        self.errors = infrastructure_error('ssh')
+        which('ssh')
         if 'host' in self.job.device['actions']['deploy']['methods']['ssh']:
             self.primary = True
             self.host = self.job.device['actions']['deploy']['methods']['ssh']['host']
@@ -152,7 +153,7 @@ class ConnectSsh(Action):
             self.logger.info("%s Connecting to device %s using '%s'", self.name, self.host, command_str)
             command.append("%s@%s" % (self.ssh_user, self.host))
         else:
-            raise JobError("Unable to identify host address. Primary? %s", self.primary)
+            raise JobError("Unable to identify host address. Primary? %s" % self.primary)
         command_str = " ".join(str(item) for item in command)
         shell = ShellCommand("%s\n" % command_str, self.timeout, logger=self.logger)
         if shell.exitstatus:
