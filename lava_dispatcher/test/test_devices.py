@@ -25,10 +25,9 @@ from lava_dispatcher.device import NewDevice
 from lava_dispatcher.parser import JobParser
 from lava_dispatcher.actions.deploy import DeployAction
 from lava_dispatcher.actions.boot import BootAction
-from lava_dispatcher.utils.shell import infrastructure_error
 from lava_dispatcher.actions.boot.u_boot import BootloaderInterruptAction, UBootAction
 from lava_dispatcher.test.test_basic import StdoutTestCase
-from lava_dispatcher.test.utils import DummyLogger
+from lava_dispatcher.test.utils import DummyLogger, infrastructure_error
 
 # Test the loading of test definitions within the deploy stage
 
@@ -112,11 +111,8 @@ class TestJobDeviceParameters(StdoutTestCase):  # pylint: disable=too-many-publi
     def test_device_power(self):
         device = NewDevice(os.path.join(os.path.dirname(__file__), '../devices/bbb-01.yaml'))
         self.assertNotEqual(device.hard_reset_command, '')
-        self.assertNotEqual(device.power_command, '')
-        self.assertIn('on', device.power_command)
         device = NewDevice(os.path.join(os.path.dirname(__file__), '../devices/kvm01.yaml'))
         self.assertEqual(device.hard_reset_command, '')
-        self.assertEqual(device.power_command, '')
 
     def test_device_constants(self):
         device = NewDevice(os.path.join(os.path.dirname(__file__), '../devices/bbb-01.yaml'))
@@ -139,7 +135,7 @@ class TestDeviceEnvironment(StdoutTestCase):  # pylint: disable=too-many-public-
         with open(sample_job_file) as sample_job_data:
             job = job_parser.parse(
                 sample_job_data, device, 4212, None, "",
-                output_dir='/tmp', env_dut=data)
+                env_dut=data)
         self.assertEqual(
             job.parameters['env_dut'],
             None
@@ -163,7 +159,7 @@ overrides:
         with open(sample_job_file) as sample_job_data:
             job = job_parser.parse(
                 sample_job_data, device, 4212, None, "",
-                output_dir='/tmp', env_dut=data)
+                env_dut=data)
         job.logger = DummyLogger()
         self.assertEqual(
             job.parameters['env_dut'],
@@ -186,7 +182,7 @@ overrides:
         with open(sample_job_file) as sample_job_data:
             job = job_parser.parse(
                 sample_job_data, device, 4212, None, "",
-                output_dir='/tmp', env_dut=data)
+                env_dut=data)
         job.logger = DummyLogger()
         self.assertEqual(
             job.parameters['env_dut'],

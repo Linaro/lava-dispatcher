@@ -28,7 +28,7 @@ from lava_dispatcher.utils.filesystem import mkdtemp
 from lava_dispatcher.test.test_uboot import UBootFactory, StdoutTestCase
 from lava_dispatcher.actions.boot.u_boot import UBootAction, UBootRetry
 from lava_dispatcher.power import ResetDevice, PDUReboot
-from lava_dispatcher.utils.shell import infrastructure_error
+from lava_dispatcher.test.utils import infrastructure_error
 from lava_dispatcher.action import InfrastructureError, Action
 from lava_dispatcher.utils import vcs, installers
 
@@ -122,6 +122,12 @@ class TestGit(StdoutTestCase):  # pylint: disable=too-many-public-methods
     def test_branch(self):
         git = vcs.GitHelper('git')
         self.assertEqual(git.clone('git.clone1', branch='testing'), 'f2589a1b7f0cfc30ad6303433ba4d5db1a542c2d')
+        self.assertTrue(os.path.exists(os.path.join(self.tmpdir, "git.clone1", ".git")))
+
+    def test_no_history(self):
+        git = vcs.GitHelper('git')
+        self.assertEqual(git.clone('git.clone1', history=False), 'a7af835862da0e0592eeeac901b90e8de2cf5b67')
+        self.assertFalse(os.path.exists(os.path.join(self.tmpdir, "git.clone1", ".git")))
 
 
 @unittest.skipIf(infrastructure_error('bzr'), "bzr not installed")
@@ -198,7 +204,7 @@ class TestConstants(StdoutTestCase):  # pylint: disable=too-many-public-methods
     def setUp(self):
         super(TestConstants, self).setUp()
         factory = UBootFactory()
-        self.job = factory.create_bbb_job('sample_jobs/uboot-ramdisk.yaml', mkdtemp())
+        self.job = factory.create_bbb_job('sample_jobs/uboot-ramdisk.yaml')
         self.assertIsNotNone(self.job)
 
     def test_action_parameters(self):
@@ -287,17 +293,20 @@ class TestInstallers(StdoutTestCase):
         # Test adding new preseed/late_command line.
         extra_command = 'cmd1'
         installers.add_late_command(preseedfile, extra_command)
-        file_content = open('preseed.cfg').read()
-        self.assertTrue('d-i preseed/late_command string cmd1' in file_content)
+        with open('preseed.cfg') as f_in:
+            file_content = f_in.read()
+            self.assertTrue('d-i preseed/late_command string cmd1' in file_content)
 
         # Test appending the second command to existing presseed/late_command line.
         extra_command = 'cmd2 ;'
         installers.add_late_command(preseedfile, extra_command)
-        file_content = open('preseed.cfg').read()
-        self.assertTrue('d-i preseed/late_command string cmd1; cmd2 ;' in file_content)
+        with open('preseed.cfg') as f_in:
+            file_content = f_in.read()
+            self.assertTrue('d-i preseed/late_command string cmd1; cmd2 ;' in file_content)
 
         # Test if it strips off extra space and semi-colon.
         extra_command = 'cmd3'
         installers.add_late_command(preseedfile, extra_command)
-        file_content = open('preseed.cfg').read()
-        self.assertTrue('d-i preseed/late_command string cmd1; cmd2; cmd3' in file_content)
+        with open('preseed.cfg') as f_in:
+            file_content = f_in.read()
+            self.assertTrue('d-i preseed/late_command string cmd1; cmd2; cmd3' in file_content)

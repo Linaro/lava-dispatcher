@@ -34,12 +34,33 @@ from lava_dispatcher.actions.deploy.testdef import (
     TestDefinitionAction,
     get_test_action_namespaces,
 )
+from lava_dispatcher.logical import Deployment
 from lava_dispatcher.utils.contextmanager import chdir
 from lava_dispatcher.utils.filesystem import check_ssh_identity_file
-from lava_dispatcher.utils.shell import infrastructure_error
+from lava_dispatcher.utils.shell import which
 from lava_dispatcher.utils.network import rpcinfo_nfs
 from lava_dispatcher.protocols.multinode import MultinodeProtocol
 from lava_dispatcher.protocols.vland import VlandProtocol
+
+
+class Overlay(Deployment):
+    compatibility = 4
+    name = "overlay"
+
+    def __init__(self, parent, parameters):
+        super(Overlay, self).__init__(parent)
+        self.action = OverlayAction()
+        self.action.section = self.action_type
+        self.action.job = self.job
+        parent.add_action(self.action, parameters)
+
+    @classmethod
+    def accepts(cls, device, parameters):
+        if 'overlay' not in device['actions']['deploy']['methods']:
+            return False, "'overlay' not in the device configuration deploy methods"
+        if parameters['to'] != 'overlay':
+            return False, '"to" parameter is not "overlay"'
+        return True, 'accepted'
 
 
 # pylint: disable=too-many-instance-attributes
@@ -102,8 +123,6 @@ class OverlayAction(DeployAction):
 
         if not self.scripts_to_copy:
             self.errors = "Unable to locate lava_test_shell support scripts."
-        if self.job.parameters.get('output_dir', None) is None:
-            self.errors = "Unable to use output directory."
         if 'parameters' in self.job.device:
             if 'interfaces' in self.job.device['parameters']:
                 if 'target' in self.job.device['parameters']['interfaces']:
@@ -141,6 +160,8 @@ class OverlayAction(DeployAction):
                 return connection
         self.set_namespace_data(action='test', label='shared', key='location', value=tmp_dir)
         lava_test_results_dir = self.get_namespace_data(action='test', label='results', key='lava_test_results_dir')
+        if not lava_test_results_dir:
+            raise LAVABug("Unable to identify top level lava test directory")
         shell = self.get_namespace_data(action='test', label='shared', key='lava_test_sh_cmd')
         self.logger.debug("[%s] Preparing overlay tarball in %s", namespace, tmp_dir)
         lava_path = os.path.abspath("%s/%s" % (tmp_dir, lava_test_results_dir))
@@ -415,8 +436,7 @@ class CompressOverlay(Action):
     summary = "Compress the lava overlay files"
 
     def run(self, connection, max_end_time, args=None):
-        output = os.path.join(self.job.parameters['output_dir'],
-                              "overlay-%s.tar.gz" % self.level)
+        output = os.path.join(self.mkdtemp(), "overlay-%s.tar.gz" % self.level)
         location = self.get_namespace_data(action='test', label='shared', key='location')
         lava_test_results_dir = self.get_namespace_data(action='test', label='results', key='lava_test_results_dir')
         self.set_namespace_data(action='test', label='shared', key='output', value=output)
@@ -544,7 +564,7 @@ class PersistentNFSOverlay(Action):
             self.errors = "Unrecognised NFS URL: '%s'" % self.parameters['persistent_nfs']['address']
             return
         nfs_server, dirname = persist['address'].split(':')
-        self.errors = infrastructure_error('rpcinfo')
+        which('rpcinfo')
         self.errors = rpcinfo_nfs(nfs_server)
         self.set_namespace_data(action=self.name, label='nfs_address', key='nfsroot', value=dirname)
         self.set_namespace_data(action=self.name, label='nfs_address', key='serverip', value=nfs_server)

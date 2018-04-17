@@ -23,7 +23,7 @@ import os
 import unittest
 from lava_dispatcher.device import NewDevice
 from lava_dispatcher.parser import JobParser
-from lava_dispatcher.test.utils import DummyLogger
+from lava_dispatcher.test.utils import DummyLogger, infrastructure_error, infrastructure_error_multi_paths
 from lava_dispatcher.actions.boot.grub import GrubMainAction
 from lava_dispatcher.actions.boot import BootloaderCommandOverlay
 from lava_dispatcher.actions.deploy.tftp import TftpAction
@@ -31,10 +31,8 @@ from lava_dispatcher.job import Job
 from lava_dispatcher.action import JobError, Pipeline
 from lava_dispatcher.test.test_basic import Factory, StdoutTestCase
 from lava_dispatcher.utils.network import dispatcher_ip
-from lava_dispatcher.utils.shell import infrastructure_error
 from lava_dispatcher.utils.filesystem import mkdtemp, tftpd_dir
 from lava_dispatcher.utils.strings import substitute
-from lava_dispatcher.utils.shell import infrastructure_error_multi_paths
 
 
 class GrubFactory(Factory):  # pylint: disable=too-few-public-methods
@@ -43,43 +41,39 @@ class GrubFactory(Factory):  # pylint: disable=too-few-public-methods
     Factory objects are dispatcher based classes, independent
     of any database objects.
     """
-    def create_job(self, filename, output_dir='/tmp/'):  # pylint: disable=no-self-use
+    def create_job(self, filename):  # pylint: disable=no-self-use
         device = NewDevice(os.path.join(os.path.dirname(__file__), '../devices/d02-01.yaml'))
         y_file = os.path.join(os.path.dirname(__file__), filename)
         with open(y_file) as sample_job_data:
             parser = JobParser()
-            job = parser.parse(sample_job_data, device, 4212, None, "",
-                               output_dir=output_dir)
+            job = parser.parse(sample_job_data, device, 4212, None, "")
         job.logger = DummyLogger()
         return job
 
-    def create_mustang_job(self, filename, output_dir='/tmp/'):  # pylint: disable=no-self-use
+    def create_mustang_job(self, filename):  # pylint: disable=no-self-use
         device = NewDevice(os.path.join(os.path.dirname(__file__), '../devices/mustang-grub-efi.yaml'))
         y_file = os.path.join(os.path.dirname(__file__), filename)
         with open(y_file) as sample_job_data:
             parser = JobParser()
-            job = parser.parse(sample_job_data, device, 4212, None, "",
-                               output_dir=output_dir)
+            job = parser.parse(sample_job_data, device, 4212, None, "")
         job.logger = DummyLogger()
         return job
 
-    def create_hikey_job(self, filename, output_dir='/tmp/'):  # pylint: disable=no-self-use
+    def create_hikey_job(self, filename):  # pylint: disable=no-self-use
         device = NewDevice(os.path.join(os.path.dirname(__file__), '../devices/hi6220-hikey-01.yaml'))
         y_file = os.path.join(os.path.dirname(__file__), filename)
         with open(y_file) as sample_job_data:
             parser = JobParser()
-            job = parser.parse(sample_job_data, device, 4212, None, "",
-                               output_dir=output_dir)
+            job = parser.parse(sample_job_data, device, 4212, None, "")
         job.logger = DummyLogger()
         return job
 
-    def create_hikey960_job(self, filename, output_dir='/tmp/'):  # pylint: disable=no-self-use
+    def create_hikey960_job(self, filename):  # pylint: disable=no-self-use
         device = NewDevice(os.path.join(os.path.dirname(__file__), '../devices/hikey960-01.yaml'))
         y_file = os.path.join(os.path.dirname(__file__), filename)
         with open(y_file) as sample_job_data:
             parser = JobParser()
-            job = parser.parse(sample_job_data, device, 4212, None, "",
-                               output_dir=output_dir)
+            job = parser.parse(sample_job_data, device, 4212, None, "")
         job.logger = DummyLogger()
         return job
 
@@ -161,7 +155,6 @@ class TestGrubAction(StdoutTestCase):  # pylint: disable=too-many-public-methods
             'job_timeout': '15m',
             'action_timeout': '5m',
             'priority': 'medium',
-            'output_dir': mkdtemp(),
             'actions': {
                 'boot': {
                     'method': 'grub',

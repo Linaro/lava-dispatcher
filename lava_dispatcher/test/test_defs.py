@@ -49,7 +49,7 @@ from lava_dispatcher.actions.deploy.testdef import (
 from lava_dispatcher.actions.boot import BootAction
 from lava_dispatcher.actions.deploy.overlay import OverlayAction
 from lava_dispatcher.actions.deploy.download import DownloaderAction
-from lava_dispatcher.utils.shell import infrastructure_error
+from lava_dispatcher.test.utils import infrastructure_error
 
 
 # pylint: disable=duplicate-code
@@ -135,8 +135,7 @@ class TestDefinitionHandlers(StdoutTestCase):  # pylint: disable=too-many-public
         data = [block['test'] for block in content['actions'] if 'test' in block][0]
         definitions = [block for block in data['definitions'] if 'path' in block][0]
         definitions['name'] = 'smoke tests'
-        job = parser.parse(yaml.dump(content), device, 4212, None, "",
-                           output_dir='/tmp/')
+        job = parser.parse(yaml.dump(content), device, 4212, None, "")
         deploy = [action for action in job.pipeline.actions if action.name == 'deployimages'][0]
         overlay = [action for action in deploy.internal_pipeline.actions if action.name == 'lava-overlay'][0]
         testdef = [action for action in overlay.internal_pipeline.actions if action.name == 'test-definition'][0]
@@ -197,10 +196,7 @@ class TestDefinitionHandlers(StdoutTestCase):  # pylint: disable=too-many-public
             scripts_to_copy.append(script)
         check_list = list(set([os.path.basename(scr) for scr in scripts_to_copy]))
 
-        if sys.version_info[0] == 2:
-            self.assertItemsEqual(check_list, script_list)
-        elif sys.version_info[0] == 3:
-            self.assertCountEqual(check_list, script_list)  # pylint: disable=no-member
+        self.assertCountEqual(check_list, script_list)
         self.assertEqual(overlay.xmod, stat.S_IRWXU | stat.S_IXGRP | stat.S_IRGRP | stat.S_IXOTH | stat.S_IROTH)
 
 
@@ -509,10 +505,7 @@ test3a: skip
         match = re.search(re_pat, data)
         if match:
             self.assertEqual(match.groupdict(), {'test_case_id': 'test1a', 'result': 'pass'})
-        if sys.version_info[0] == 2:
-            child = pexpect.spawn('cat', [self.res_data])
-        elif sys.version_info[0] == 3:
-            child = pexpect.spawn('cat', [self.res_data], encoding='utf-8')
+        child = pexpect.spawn('cat', [self.res_data], encoding='utf-8')
         child.expect([re_pat, pexpect.EOF])
         self.assertEqual(child.after.encode('utf-8'), b'test1a: pass')
         child.expect([re_pat, pexpect.EOF])

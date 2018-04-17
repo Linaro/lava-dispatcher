@@ -91,21 +91,14 @@ class ShellCommand(pexpect.spawn):  # pylint: disable=too-many-public-methods
             raise LAVABug("ShellCommand needs a timeout set by the calling Action")
         if not logger:
             raise LAVABug("ShellCommand needs a logger")
-        if sys.version_info[0] == 2:
-            pexpect.spawn.__init__(
-                self, command,
-                timeout=lava_timeout.duration,
-                cwd=cwd,
-                logfile=ShellLogger(logger),
-            )
-        elif sys.version_info[0] == 3:
-            pexpect.spawn.__init__(
-                self, command,
-                timeout=lava_timeout.duration,
-                cwd=cwd,
-                logfile=ShellLogger(logger),
-                encoding='utf-8',
-            )
+        pexpect.spawn.__init__(
+            self, command,
+            timeout=lava_timeout.duration,
+            cwd=cwd,
+            logfile=ShellLogger(logger),
+            encoding='utf-8',
+            codec_errors='replace'
+        )
         self.name = "ShellCommand"
         self.logger = logger
         # set a default newline character, but allow actions to override as neccessary
@@ -200,6 +193,12 @@ class ShellSession(Connection):
 
     @prompt_str.setter
     def prompt_str(self, string):
+        """
+        pexpect allows the prompt to be a single string or a list of strings
+        this property simply replaces the previous value with the new one
+        whether that is a string or a list of strings.
+        To use + the instance of the existing prompt_str must be checked.
+        """
         # FIXME: Debug logging should show whenever this property is changed
         self.__prompt_str__ = string
 

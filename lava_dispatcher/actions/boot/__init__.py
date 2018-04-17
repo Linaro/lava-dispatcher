@@ -250,10 +250,12 @@ class AutoLoginAction(Action):
 
             error_messages = self.job.device.get_constant('error-messages', prefix=self.method, missing_ok=True)
             if error_messages:
+                if isinstance(connection.prompt_str, str):
+                    connection.prompt_str = [connection.prompt_str]
                 connection.prompt_str = connection.prompt_str + error_messages
             res = self.wait(connection)
             if res != 0:
-                raise InfrastructureError('matched a bootloader error message: %s', connection.prompt_str[res])
+                raise InfrastructureError('matched a bootloader error message: %s' % connection.prompt_str[res])
 
         def check_prompt_characters(chk_prompt):
             if not any([True for c in DISTINCTIVE_PROMPT_CHARACTERS if c in chk_prompt]):
@@ -389,17 +391,16 @@ class BootloaderCommandOverlay(Action):
             self.commands = self.parameters['commands']
             self.logger.warning("WARNING: Using boot commands supplied in the job definition, NOT the LAVA device configuration")
         else:
-            if self.method not in self.job.device['actions']['boot']['methods']:
+            if self.method not in device_methods:
                 self.errors = "%s boot method not found" % self.method
-            if 'method' not in self.parameters:
-                self.errors = "missing method"
             elif 'commands' not in self.parameters:
                 self.errors = "missing commands"
-            elif self.parameters['commands'] not in device_methods[self.parameters['method']]:
+            elif self.parameters['commands'] not in device_methods[self.method]:
                 self.errors = "Command not found in supported methods"
-            elif 'commands' not in device_methods[self.parameters['method']][self.parameters['commands']]:
+            elif 'commands' not in device_methods[self.method][self.parameters['commands']]:
                 self.errors = "No commands found in parameters"
-            self.commands = device_methods[self.parameters['method']][self.parameters['commands']]['commands']
+            else:
+                self.commands = device_methods[self.method][self.parameters['commands']]['commands']
         # download-action will set ['dtb'] as tftp_path, tmpdir & filename later, in the run step.
         if 'use_bootscript' in self.parameters:
             self.use_bootscript = self.parameters['use_bootscript']
@@ -556,15 +557,6 @@ class OverlayUnpack(Action):
     description = 'transfer and unpack overlay to persistent rootfs after login'
     summary = 'transfer and unpack overlay'
 
-    def __init__(self):
-        super(OverlayUnpack, self).__init__()
-        self.url = None
-
-    def cleanup(self, connection):
-        super(OverlayUnpack, self).cleanup(connection)
-        if self.url:
-            os.unlink(self.url)
-
     def validate(self):
         super(OverlayUnpack, self).validate()
         if 'transfer_overlay' not in self.parameters:
@@ -580,15 +572,15 @@ class OverlayUnpack(Action):
         if not connection:
             raise LAVABug("Cannot transfer overlay, no connection available.")
         ip_addr = dispatcher_ip(self.job.parameters['dispatcher'])
-        overlay_file = self.get_namespace_data(action='compress-overlay', label='output', key='file')
-        if not overlay_file:
+        overlay_full_path = self.get_namespace_data(action='compress-overlay', label='output', key='file')
+        if not overlay_full_path:
             raise JobError("No overlay file identified for the transfer.")
-        overlay = os.path.basename(overlay_file).strip()
-        self.url = os.path.join(DISPATCHER_DOWNLOAD_DIR, overlay)
-        shutil.copy(overlay_file, self.url)
-        self.logger.debug("Moved %s to %s", overlay_file, self.url)
+        if not overlay_full_path.startswith(DISPATCHER_DOWNLOAD_DIR):
+            raise ConfigurationError("overlay should already be in DISPATCHER_DOWNLOAD_DIR")
+        overlay_path = overlay_full_path[len(DISPATCHER_DOWNLOAD_DIR) + 1:]
+        overlay = os.path.basename(overlay_path)
         dwnld = self.parameters['transfer_overlay']['download_command']
-        dwnld += " http://%s/tmp/%s" % (ip_addr, overlay)
+        dwnld += " http://%s/tmp/%s" % (ip_addr, overlay_path)
         unpack = self.parameters['transfer_overlay']['unpack_command']
         unpack += ' ' + overlay
         connection.sendline("rm %s; %s && %s" % (overlay, dwnld, unpack))
@@ -603,6 +595,7 @@ class BootloaderInterruptAction(Action):
     name = "bootloader-interrupt"
     description = "interrupt bootloader"
     summary = "interrupt bootloader to get an interactive shell"
+    timeout_exception = InfrastructureError
 
     def __init__(self):
         super(BootloaderInterruptAction, self).__init__()
@@ -665,6 +658,7 @@ class BootloaderCommandsAction(Action):
     name = "bootloader-commands"
     description = "send commands to bootloader"
     summary = "interactive bootloader"
+    timeout_exception = InfrastructureError
 
     def __init__(self, expect_final=True):
         super(BootloaderCommandsAction, self).__init__()
@@ -695,6 +689,8 @@ class BootloaderCommandsAction(Action):
         error_messages = self.job.device.get_constant('error-messages', prefix=self.method, missing_ok=True)
         final_message = self.job.device.get_constant('final-message', prefix=self.method, missing_ok=True)
         if error_messages:
+            if isinstance(connection.prompt_str, str):
+                connection.prompt_str = [connection.prompt_str]
             connection.prompt_str = connection.prompt_str + error_messages
 
         for line in commands:

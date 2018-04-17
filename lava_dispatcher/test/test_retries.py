@@ -25,6 +25,7 @@ from lava_dispatcher.action import (
     Timeout,
     JobError,
     LAVABug,
+    InfrastructureError,
 )
 from lava_dispatcher.logical import (
     RetryAction,
@@ -32,7 +33,6 @@ from lava_dispatcher.logical import (
 )
 from lava_dispatcher.power import FinalizeAction
 from lava_dispatcher.job import Job
-from lava_dispatcher.utils.filesystem import mkdtemp
 from lava_dispatcher.test.test_basic import StdoutTestCase
 from lava_dispatcher.test.utils import DummyLogger
 
@@ -154,7 +154,6 @@ class TestAction(StdoutTestCase):  # pylint: disable=too-many-public-methods
         super(TestAction, self).setUp()
         self.parameters = {
             "job_name": "fakejob",
-            'output_dir': mkdtemp(),
             "actions": [
                 {
                     'deploy': {
@@ -406,7 +405,6 @@ class TestTimeout(StdoutTestCase):  # pylint: disable=too-many-public-methods
         super(TestTimeout, self).setUp()
         self.parameters = {
             "job_name": "fakejob",
-            'output_dir': mkdtemp(),
             'timeouts': {
                 'job': {
                     'seconds': 3
@@ -450,6 +448,18 @@ class TestTimeout(StdoutTestCase):  # pylint: disable=too-many-public-methods
         self.fakejob.pipeline = pipeline
         self.fakejob.device = TestTimeout.FakeDevice()
         with self.assertRaises(JobError):
+            self.fakejob.run()
+
+    def test_action_timout_custom_exception(self):
+        """ Test custom timeout exception """
+        seconds = 2
+        pipeline = TestTimeout.FakePipeline(job=self.fakejob)
+        action = TestTimeout.FakeAction()
+        action.timeout = Timeout(action.name, duration=seconds, exception=InfrastructureError)
+        pipeline.add_action(action)
+        self.fakejob.pipeline = pipeline
+        self.fakejob.device = TestTimeout.FakeDevice()
+        with self.assertRaises(InfrastructureError):
             self.fakejob.run()
 
     def test_action_complete(self):

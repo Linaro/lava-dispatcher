@@ -24,14 +24,12 @@
 import os
 import tempfile
 
-from lava_dispatcher.action import Pipeline
+from lava_dispatcher.action import Pipeline, JobError
 from lava_dispatcher.logical import Deployment
 from lava_dispatcher.actions.deploy import DeployAction
 from lava_dispatcher.actions.deploy.download import DownloaderAction
-from lava_dispatcher.utils.shell import infrastructure_error
+from lava_dispatcher.utils.shell import which
 from lava_dispatcher.utils.filesystem import tftpd_dir
-from lava_dispatcher.utils.network import get_free_port
-from lava_dispatcher.utils.network import dispatcher_ip
 from lava_dispatcher.protocols.xnbd import XnbdProtocol
 from lava_dispatcher.actions.deploy.overlay import OverlayAction
 
@@ -98,8 +96,8 @@ class NbdAction(DeployAction):  # pylint:disable=too-many-instance-attributes
         suffix = os.path.join(*self.tftp_dir.split('/')[-2:])
         self.set_namespace_data(action="tftp-deploy", label='tftp', key='suffix', value=suffix)
         # we need tftp _and_ xnbd-server
-        self.errors = infrastructure_error('in.tftpd')
-        self.errors = infrastructure_error('xnbd-server')
+        which('in.tftpd')
+        which('xnbd-server')
 
         # Check that the tmp directory is in the nbdd_dir or in /tmp for the
         # unit tests
@@ -132,13 +130,6 @@ class NbdAction(DeployAction):  # pylint:disable=too-many-instance-attributes
         # and store in namespace for boot action
         # ip
         parameters['lava-xnbd'] = {}
-        self.nbd_ip = dispatcher_ip(self.job.parameters['dispatcher'])
-        parameters['lava-xnbd']['ip'] = self.nbd_ip
-        self.set_namespace_data(action=self.name, label='nbd', key='nbd_server_ip', value=self.nbd_ip, parameters=parameters)
-        # port
-        self.nbd_port = get_free_port(self.job.parameters['dispatcher'])
-        parameters['lava-xnbd']['port'] = self.nbd_port
-        self.set_namespace_data(action=self.name, label='nbd', key='nbd_server_port', value=self.nbd_port, parameters=parameters)
         # handle XnbdAction next - bring-up xnbd-server
         self.internal_pipeline.add_action(XnbdAction())
 
@@ -155,16 +146,16 @@ class XnbdAction(DeployAction):
         self.nbd_server_port = None
         self.nbd_server_ip = None
 
-    def validate(self):
-        pass
-
     def run(self, connection, max_end_time, args=None):
         connection = super(XnbdAction, self).run(connection, max_end_time, args)
         self.logger.debug("%s: starting xnbd-server", self.name)
         # pull from parameters - as previously set
-        self.nbd_server_port = self.parameters['lava-xnbd']['port']
-        self.nbd_server_ip = self.parameters['lava-xnbd']['ip']
         self.nbd_root = self.parameters['lava-xnbd']['nbdroot']
+        self.nbd_server_port = self.get_namespace_data(action='nbd-deploy', label='nbd', key='nbd_server_port')
+        self.nbd_server_ip = self.get_namespace_data(action='nbd-deploy', label='nbd', key='nbd_server_ip')
+        if self.nbd_server_port is None:
+            self.errors = "NBD server port is unset"
+            return connection
         self.logger.debug("NBD-IP: %s, NBD-PORT: %s, NBD-ROOT: %s",
                           self.nbd_server_ip, self.nbd_server_port, self.nbd_root)
         nbd_cmd = ['xnbd-server', '--logpath', '/tmp/xnbd.log.%s' % self.nbd_server_port,
@@ -174,6 +165,7 @@ class XnbdAction(DeployAction):
         command_output = self.run_command(nbd_cmd, allow_fail=False)
 
         if command_output and 'error' in command_output:
-            self.errors = infrastructure_error('xnbd-server: %s' % command_output)
-        self.logger.debug("%s: starting xnbd-server done", self.name)
+            raise JobError('xnbd-server: %s' % command_output)
+        else:
+            self.logger.debug("%s: starting xnbd-server done", self.name)
         return connection

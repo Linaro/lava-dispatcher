@@ -33,7 +33,7 @@ from lava_dispatcher.connections.lxc import (
     ConnectLxc,
 )
 from lava_dispatcher.shell import ExpectShellSession
-from lava_dispatcher.utils.shell import infrastructure_error
+from lava_dispatcher.utils.shell import which
 from lava_dispatcher.utils.udev import get_udev_devices
 from lava_dispatcher.utils.udev import allow_fs_label
 
@@ -67,9 +67,6 @@ class BootLxcAction(BootAction):
     name = "lxc-boot"
     description = "lxc boot into the system"
     summary = "lxc boot"
-
-    def validate(self):
-        super(BootLxcAction, self).validate()
 
     def populate(self, parameters):
         self.internal_pipeline = Pipeline(parent=self, job=self.job, parameters=parameters)
@@ -138,7 +135,7 @@ class LxcAddStaticDevices(Action):
         for link in device_list:
             lxc_cmd = ['lxc-device', '-n', lxc_name, 'add', link]
             cmd_out = self.run_command(lxc_cmd, allow_silent=True)
-            if cmd_out:
+            if not isinstance(cmd_out, bool) and cmd_out:
                 self.logger.debug(cmd_out)
         return connection
 
@@ -158,7 +155,7 @@ class LxcStartAction(Action):
 
     def validate(self):
         super(LxcStartAction, self).validate()
-        self.errors = infrastructure_error('lxc-start')
+        which('lxc-start')
 
     def run(self, connection, max_end_time, args=None):
         connection = super(LxcStartAction, self).run(connection, max_end_time, args)
@@ -201,7 +198,7 @@ class LxcStopAction(Action):
 
     def validate(self):
         super(LxcStopAction, self).validate()
-        self.errors = infrastructure_error('lxc-stop')
+        which('lxc-stop')
 
     def run(self, connection, max_end_time, args=None):
         connection = super(LxcStopAction, self).run(connection, max_end_time, args)

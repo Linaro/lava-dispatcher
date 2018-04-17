@@ -21,6 +21,7 @@
 import sys
 import logging
 import os
+import shutil
 import subprocess
 import yaml
 from lava_dispatcher.action import InfrastructureError
@@ -65,16 +66,12 @@ class BzrHelper(VCSHelper):
                                         stderr=subprocess.STDOUT, env=env)
                 os.chdir(dest_path)
                 commit_id = subprocess.check_output(['bzr', 'revno'],
-                                                    env=env).strip().decode('utf-8')
+                                                    env=env).strip().decode('utf-8', errors="replace")
 
         except subprocess.CalledProcessError as exc:
             exc_command = [i.strip() for i in exc.cmd]
-            if sys.version > '3':
-                exc_message = str(exc)  # pylint: disable=redefined-variable-type
-                exc_output = str(exc).split('\n')
-            else:
-                exc_message = [i.strip() for i in exc.message],  # pylint: disable=redefined-variable-type
-                exc_output = exc.output.split('\n')
+            exc_message = str(exc)  # pylint: disable=redefined-variable-type
+            exc_output = str(exc).split('\n')
             logger.exception(yaml.dump({
                 'command': exc_command,
                 'message': exc_message,
@@ -103,7 +100,7 @@ class GitHelper(VCSHelper):
         super(GitHelper, self).__init__(url)
         self.binary = '/usr/bin/git'
 
-    def clone(self, dest_path, shallow=False, revision=None, branch=None):
+    def clone(self, dest_path, shallow=False, revision=None, branch=None, history=True):
         logger = logging.getLogger('dispatcher')
         try:
             if branch is not None:
@@ -128,15 +125,17 @@ class GitHelper(VCSHelper):
             commit_id = subprocess.check_output([self.binary, '-C', dest_path,
                                                  'log', '-1', '--pretty=%H'],
                                                 stderr=subprocess.STDOUT).strip()
+
+            if not history:
+                logger.debug("Removing '.git' directory in %s", dest_path)
+                shutil.rmtree(os.path.join(dest_path, ".git"))
+
         except subprocess.CalledProcessError as exc:
-            if sys.version > '3':
-                logger.error(str(exc))
-            else:
-                logger.error(exc.output)
+            logger.error(str(exc))
             raise InfrastructureError("Unable to fetch git repository '%s'"
                                       % (self.url))
 
-        return commit_id.decode('utf-8')
+        return commit_id.decode('utf-8', errors="replace")
 
 
 class TarHelper(VCSHelper):
@@ -146,9 +145,6 @@ class TarHelper(VCSHelper):
         super(TarHelper, self).__init__(url)
         self.binary = None
 
-    def clone(self, dest_path, revision=None, branch=None):
-        super(TarHelper, self).clone(dest_path, revision, branch)
-
 
 class URLHelper(VCSHelper):
     # TODO: implement URLHelper
@@ -156,6 +152,3 @@ class URLHelper(VCSHelper):
     def __init__(self, url):
         super(URLHelper, self).__init__(url)
         self.binary = None
-
-    def clone(self, dest_path, revision=None, branch=None):
-        super(URLHelper, self).clone(dest_path, revision, branch)

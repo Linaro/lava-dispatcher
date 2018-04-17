@@ -32,8 +32,7 @@ from lava_dispatcher.actions.boot.depthcharge import (
 from lava_dispatcher.device import NewDevice
 from lava_dispatcher.parser import JobParser
 from lava_dispatcher.test.test_basic import Factory, StdoutTestCase
-from lava_dispatcher.test.utils import DummyLogger
-from lava_dispatcher.utils.shell import infrastructure_error
+from lava_dispatcher.test.utils import DummyLogger, infrastructure_error
 
 
 class DepthchargeFactory(object):
@@ -42,14 +41,13 @@ class DepthchargeFactory(object):
     Factory objects are dispatcher based classes, independent
     of any database objects.
     """
-    def create_jaq_job(self, filename, output_dir='/tmp/'):
+    def create_jaq_job(self, filename):
         device = NewDevice(os.path.join(
             os.path.dirname(__file__), '../devices/jaq-01.yaml'))
         yaml = os.path.join(os.path.dirname(__file__), filename)
         with open(yaml) as sample_job_data:
             parser = JobParser()
-            job = parser.parse(sample_job_data, device, 4212, None, "",
-                               output_dir=output_dir)
+            job = parser.parse(sample_job_data, device, 4212, None, "")
             job.logger = DummyLogger()
         return job
 

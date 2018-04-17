@@ -26,7 +26,7 @@ from lava_dispatcher.actions.deploy import DeployAction
 from lava_dispatcher.actions.deploy.environment import DeployDeviceEnvironment
 from lava_dispatcher.actions.deploy.overlay import OverlayAction
 from lava_dispatcher.logical import Deployment
-from lava_dispatcher.utils.shell import infrastructure_error
+from lava_dispatcher.utils.shell import which
 
 
 class DockerAction(DeployAction):
@@ -37,18 +37,15 @@ class DockerAction(DeployAction):
 
     def validate(self):
         super(DockerAction, self).validate()
-        err = infrastructure_error("docker")
-        if err is not None:
-            self.errors = err
-            return
+        which("docker")
 
         # Print docker version
         try:
             out = subprocess.check_output(["docker", "version", "-f", "{{.Server.Version}}"])
-            out = out.decode("utf-8").strip("\n")
+            out = out.decode("utf-8", errors="replace").strip("\n")
             self.logger.debug("docker server, installed at version: %s", out)
             out = subprocess.check_output(["docker", "version", "-f", "{{.Client.Version}}"])
-            out = out.decode("utf-8").strip("\n")
+            out = out.decode("utf-8", errors="replace").strip("\n")
             self.logger.debug("docker client, installed at version: %s", out)
         except subprocess.CalledProcessError as exc:
             raise InfrastructureError("Unable to call '%s': %s" % (exc.cmd, exc.output))
